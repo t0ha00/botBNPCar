@@ -9,3 +9,8 @@ class UserStates(Helper):
     USER_STATE_2 = ListItem()
     USER_STATE_3 = ListItem()
     USER_STATE_4 = ListItem()
+
+    USER_STATE_TABLE_0 = ListItem()
+    USER_STATE_TABLE_1 = ListItem()
+    USER_STATE_TABLE_2 = ListItem()
+    USER_STATE_TABLE_3 = ListItem()

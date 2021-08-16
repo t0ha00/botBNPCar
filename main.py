@@ -5,6 +5,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMedia
 from aiogram.utils import executor
 from telegram_bot_calendar import LSTEP, WMonthTelegramCalendar
 from utils import UserStates
+import prettytable as pt
 import threading
 import time
 import io
@@ -80,10 +81,96 @@ async def save_data():
 
 # ------------------------------Кнопка расписание-----------------------------------------
 
+# -----------------------------Выбор нужного расписания----------------------------------
+
 @dp.callback_query_handler(lambda c: c.data == 'buttontime', state=UserStates.USER_STATE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(UserStates.all()[5])
+    markup = types.InlineKeyboardMarkup(row_width=3)
+    button = [types.InlineKeyboardButton(text='Отчет по имени', callback_data='table_name'),
+              types.InlineKeyboardButton(text='Отчет по дате', callback_data='table_date'),
+              types.InlineKeyboardButton(text='Полный отчет', callback_data='table_full')]
+    markup.add(*button)
     await bot.answer_callback_query(callback_query.id)
-    await bot.send_message(callback_query.from_user.id, 'Вы выбрали посмотреть расписание')
+    await bot.send_message(callback_query.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
+
+@dp.callback_query_handler(lambda c: c.data == 'table_name', state=UserStates.USER_STATE_TABLE_0)
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(UserStates.all()[6])
+    await bot.send_message(callback_query.from_user.id, 'Введите ФИО.')
+
+@dp.message_handler(state=UserStates.USER_STATE_TABLE_1)
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    sql_check = "SELECT * FROM users where name={}".format(callback_query.message.text)
+    cursor.execute(sql_check)
+    resultlist = cursor.fetchall()
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(UserStates.all()[0])
+    if not resultlist:
+        await bot.answer_callback_query(callback_query.id)
+        await bot.send_message(callback_query.from_user.id, 'Пустая таблица')
+    else:
+        table = pt.PrettyTable(["Дата", "Время"])
+        for elem in resultlist:
+            dateOut = str(elem[2])
+            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+            table.add_row([dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+        await bot.answer_callback_query(callback_query.id)
+        await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
+
+@dp.callback_query_handler(lambda c: c.data == 'table_date', state=UserStates.USER_STATE_TABLE_0)
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(UserStates.all()[7])
+    calendar, step = WMonthTelegramCalendar().build()
+    await bot.send_message(callback_query.from_user.id, 'Выберите дату', reply_markup=calendar)
+
+@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_TABLE_2)
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    result, key, step = WMonthTelegramCalendar().process(callback_query.data)
+    if not result and key:
+        await bot.edit_message_text(f"📅 Выберите день",
+                                    callback_query.message.chat.id,
+                                    callback_query.message.message_id,
+                                    reply_markup=key)
+    elif result:
+        resultInt = int(str(result).replace("-", ""))
+        sql_check = "SELECT * FROM users where name={}".format(resultInt)
+        cursor.execute(sql_check)
+        resultlist = cursor.fetchall()
+        state = dp.current_state(user=callback_query.from_user.id)
+        await state.set_state(UserStates.all()[0])
+        if not resultlist:
+            await bot.answer_callback_query(callback_query.id)
+            await bot.send_message(callback_query.from_user.id, 'Пустая таблица')
+        else:
+            table = pt.PrettyTable(["Дата", "Время"])
+            for elem in resultlist:
+                table.add_row([elem[1], 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+            await bot.answer_callback_query(callback_query.id)
+            await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
+
+
+@dp.callback_query_handler(lambda c: c.data == 'table_full', state=UserStates.USER_STATE_TABLE_0)
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    sql_check = "SELECT * FROM users"
+    cursor.execute(sql_check)
+    resultlist = cursor.fetchall()
+    if not resultlist:
+        await bot.answer_callback_query(callback_query.id)
+        await bot.send_message(callback_query.from_user.id, 'Пустая таблица')
+    else:
+        table = pt.PrettyTable(["Имя", "Дата", "Время"])
+        for elem in resultlist:
+            dateOut = str(elem[2])
+            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+            table.add_row([elem[1], dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+        await bot.answer_callback_query(callback_query.id)
+        await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
 
 # ------------------------------Кнопка запись------------------------------------------------
