@@ -139,7 +139,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 @dp.message_handler(state=UserStates.USER_STATE_TABLE_2)
 async def process_callback_button1(message: types.Message):
     name = '\"' + message.text + '\"'
-    sql_select = "SELECT * FROM users where name={}".format(name)
+    sql_select = "SELECT * FROM users where name={} ORDER BY date DESC".format(name)
     cursor.execute(sql_select)
     resultlist = cursor.fetchall()
     state = dp.current_state(user=message.from_user.id)
@@ -166,7 +166,7 @@ async def process_callback_button1(message: types.Message):
 @dp.message_handler(state=UserStates.USER_STATE_TABLE_3)
 async def process_callback_button1(message: types.message):
     name = '\"' + message.text + '\"'
-    sql_select = "SELECT * FROM users where name={}".format(name)
+    sql_select = "SELECT * FROM users where name={} ORDER BY date DESC".format(name)
     cursor.execute(sql_select)
     resultlist = cursor.fetchall()
     state = dp.current_state(user=message.from_user.id)
@@ -254,7 +254,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
                                     reply_markup=key)
     elif result:
         resultInt = int(str(result).replace("-", ""))
-        sql_check = "SELECT * FROM users where date={}".format(resultInt)
+        sql_check = "SELECT * FROM users where date={} ORDER BY date DESC".format(resultInt)
         cursor.execute(sql_check)
         resultlist = cursor.fetchall()
         state = dp.current_state(user=callback_query.from_user.id)
@@ -283,7 +283,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == 'file_full', state=UserStates.USER_STATE_TABLE_7)
 async def process_callback_button1(callback_query: types.CallbackQuery):
-    sql_check = "SELECT * FROM users"
+    sql_check = "SELECT * FROM users ORDER BY date DESC"
     cursor.execute(sql_check)
     resultlist = cursor.fetchall()
     if not resultlist:
@@ -310,7 +310,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == 'message_full', state=UserStates.USER_STATE_TABLE_7)
 async def process_callback_button1(callback_query: types.CallbackQuery):
-    sql_check = "SELECT * FROM users"
+    sql_check = "SELECT * FROM users ORDER BY date DESC"
     cursor.execute(sql_check)
     resultlist = cursor.fetchall()
     if not resultlist:
@@ -632,14 +632,13 @@ async def first_test_state_case_met(message: types.Message):
 
 @dp.message_handler(commands=['start'], state='*')
 async def process_start_command(message: types.Message):
-    try:
+    sql_check = "SELECT * FROM users "
+    cursor.execute(sql_check)
+    newlist = cursor.fetchall()
+    if not newlist:
         data = await get_data()
         cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
         await save_data()
-    except Exception as ex:
-        await save_data()
-        data = await get_data()
-        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
     conn.commit()
@@ -659,16 +658,24 @@ async def process_help_command(message: types.Message):
                                                  "Для просмотра расписания /otchet\n"
                                                  "Если что-то посло не так - /reset")
 
+
+@dp.message_handler(commands=['reset2'], state='*')
+async def process_help_command(message: types.Message):
+    cursor.execute("DROP TABLE users")
+    cursor.execute(
+        "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER)")
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[0])
+    await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
+
 @dp.message_handler(commands=['reset'], state='*')
 async def process_help_command(message: types.Message):
-    try:
-        data = await get_data()
-        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
-        await save_data()
-    except Exception as ex:
-        await save_data()
-        data = await get_data()
-        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+    data = await get_data()
+    cursor.execute("DROP TABLE users")
+    cursor.execute(
+        "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER)")
+    cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+    await save_data()
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
     await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
@@ -807,6 +814,6 @@ async def first_test_state_case_met(message: types.Message):
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(message.chat.id, "Выберите день:", reply_markup=calendar)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
