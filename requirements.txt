@@ -16,4 +16,5 @@ six==1.16.0
 typing-extensions==3.10.0.0
 yarl==1.6.3
 
-prettytable~=2.1.0
+prettytable==2.1.0
+XlsxWriter==3.0.1
