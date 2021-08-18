@@ -15,3 +15,5 @@ setuptools==57.4.0
 six==1.16.0
 typing-extensions==3.10.0.0
 yarl==1.6.3
+
+prettytable~=2.1.0
