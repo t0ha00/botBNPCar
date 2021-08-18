@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -83,6 +85,16 @@ async def save_data():
 # ------------------------------Кнопка расписание-----------------------------------------
 
 # -----------------------------Выбор нужного расписания----------------------------------
+@dp.message_handler(commands=['otchet'], state="*")
+async def process_callback_button1(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[5])
+    markup = types.InlineKeyboardMarkup(row_width=3)
+    button = [types.InlineKeyboardButton(text='Отчет по имени', callback_data='table_name'),
+              types.InlineKeyboardButton(text='Отчет по дате', callback_data='table_date'),
+              types.InlineKeyboardButton(text='Полный отчет', callback_data='table_full')]
+    markup.add(*button)
+    await bot.send_message(message.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
 
 @dp.callback_query_handler(lambda c: c.data == 'buttontime', state=UserStates.USER_STATE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
@@ -96,6 +108,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
 
+
 @dp.callback_query_handler(lambda c: c.data == 'table_name', state=UserStates.USER_STATE_TABLE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
@@ -106,19 +119,22 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     markup.add(*button)
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
 
-@dp.callback_query_handler(lambda c: c.data == 'file_name', state=UserStates.USER_STATE_TABLE_1,)
+
+@dp.callback_query_handler(lambda c: c.data == 'file_name', state=UserStates.USER_STATE_TABLE_1, )
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[7])
     await bot.send_message(callback_query.from_user.id, 'Введите ФИО.')
 
-@dp.callback_query_handler(lambda c: c.data == 'message_name', state=UserStates.USER_STATE_TABLE_1,)
+
+@dp.callback_query_handler(lambda c: c.data == 'message_name', state=UserStates.USER_STATE_TABLE_1, )
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[8])
     await bot.send_message(callback_query.from_user.id, 'Введите ФИО.')
+
 
 @dp.message_handler(state=UserStates.USER_STATE_TABLE_2)
 async def process_callback_button1(message: types.Message):
@@ -146,6 +162,7 @@ async def process_callback_button1(message: types.Message):
         f = open('./' + message.text + '.xlsx', 'rb')
         await bot.send_document(message.from_user.id, f)
 
+
 @dp.message_handler(state=UserStates.USER_STATE_TABLE_3)
 async def process_callback_button1(message: types.message):
     name = '\"' + message.text + '\"'
@@ -164,6 +181,7 @@ async def process_callback_button1(message: types.message):
             table.add_row([dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
         await bot.send_message(message.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
+
 @dp.callback_query_handler(lambda c: c.data == 'table_date', state=UserStates.USER_STATE_TABLE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
@@ -174,7 +192,8 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     markup.add(*button)
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
 
-@dp.callback_query_handler(lambda c: c.data == 'file_date', state=UserStates.USER_STATE_TABLE_4,)
+
+@dp.callback_query_handler(lambda c: c.data == 'file_date', state=UserStates.USER_STATE_TABLE_4, )
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
@@ -182,13 +201,15 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(callback_query.from_user.id, 'Выберите дату', reply_markup=calendar)
 
-@dp.callback_query_handler(lambda c: c.data == 'message_date', state=UserStates.USER_STATE_TABLE_4,)
+
+@dp.callback_query_handler(lambda c: c.data == 'message_date', state=UserStates.USER_STATE_TABLE_4, )
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[11])
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(callback_query.from_user.id, 'Выберите дату', reply_markup=calendar)
+
 
 @dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_TABLE_5)
 async def process_callback_button1(callback_query: types.CallbackQuery):
@@ -222,6 +243,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
             f = open('./' + str(result) + '.xlsx', 'rb')
             await bot.send_document(callback_query.from_user.id, f)
 
+
 @dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_TABLE_6)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     result, key, step = WMonthTelegramCalendar().process(callback_query.data)
@@ -247,6 +269,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
             await bot.answer_callback_query(callback_query.id)
             await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
+
 @dp.callback_query_handler(lambda c: c.data == 'table_full', state=UserStates.USER_STATE_TABLE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
@@ -256,6 +279,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
               types.InlineKeyboardButton(text='Сообщением 📨', callback_data='message_full')]
     markup.add(*button)
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
+
 
 @dp.callback_query_handler(lambda c: c.data == 'file_full', state=UserStates.USER_STATE_TABLE_7)
 async def process_callback_button1(callback_query: types.CallbackQuery):
@@ -283,6 +307,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
         f = open('./full.xlsx', 'rb')
         await bot.send_document(callback_query.from_user.id, f)
 
+
 @dp.callback_query_handler(lambda c: c.data == 'message_full', state=UserStates.USER_STATE_TABLE_7)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     sql_check = "SELECT * FROM users"
@@ -302,6 +327,11 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 
 
 # ------------------------------Кнопка запись------------------------------------------------
+@dp.message_handler(commands=['zapis'], state="*")
+async def process_callback_button2(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[1])
+    await bot.send_message(message.from_user.id, 'Введите ФИО.', )
 
 @dp.callback_query_handler(lambda c: c.data == 'buttonzapis', state=UserStates.USER_STATE_0)
 async def process_callback_button2(callback_query: types.CallbackQuery):
@@ -359,7 +389,8 @@ async def inline_kb_answer_callback_handler(query):
             calendar, step = WMonthTelegramCalendar().build()
             await bot.send_message(query.from_user.id, "📅 Выберите день:", reply_markup=calendar)
 
-#-----------------------------Запретная кнопка-----------------------------------------------
+
+# -----------------------------Запретная кнопка-----------------------------------------------
 
 @dp.callback_query_handler(lambda c: c.data == '❌', state='*')
 async def first_test_state_case_met(message: types.Message):
@@ -599,19 +630,19 @@ async def first_test_state_case_met(message: types.Message):
                            reply_markup=markup)
 
 
-@dp.message_handler(commands=['1'], state='*')
-async def start(message):
-    sql = "SELECT * FROM users "
-    cursor.execute(sql)
-    data = cursor.fetchall()
-    str_data = json.dumps(data)
-    await bot.send_message(message.from_user.id, str_data)
-
-
 @dp.message_handler(commands=['start'], state='*')
 async def process_start_command(message: types.Message):
+    try:
+        data = await get_data()
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+        await save_data()
+    except Exception as ex:
+        await save_data()
+        data = await get_data()
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
+    conn.commit()
     button = InlineKeyboardButton('Посмотерть рассписание 📅', callback_data='buttontime')
     button2 = InlineKeyboardButton('Записаться 📝', callback_data='buttonzapis')
     kb = InlineKeyboardMarkup().add(button).add(button2)
@@ -620,10 +651,27 @@ async def process_start_command(message: types.Message):
                            reply_markup=kb)
 
 
-@dp.message_handler(commands=['help'])
+@dp.message_handler(commands=['help'], state='*')
 async def process_help_command(message: types.Message):
-    await bot.send_message(message.from_user.id, "Здравствуйте! 👋\nЭто бот-расписание БНП для автомобиля!\n ")
+    await bot.send_message(message.from_user.id, "Здравствуйте! 👋\nЭто бот-расписание БНП для автомобиля!\n"
+                                                 "Для начала используйте команду /start\n"
+                                                 "Для записи команда /zapis\n"
+                                                 "Для просмотра расписания /otchet\n"
+                                                 "Если что-то посло не так - /reset")
 
+@dp.message_handler(commands=['reset'], state='*')
+async def process_help_command(message: types.Message):
+    try:
+        data = await get_data()
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+        await save_data()
+    except Exception as ex:
+        await save_data()
+        data = await get_data()
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[0])
+    await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
 
 # ------------Последний этап, выбор окончания аренды, запись в базу --------------------------
 
@@ -631,43 +679,50 @@ async def process_help_command(message: types.Message):
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 1
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[2], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 2
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[3], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 3
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[4], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 4
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[5], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 5
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[6], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 6
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[7], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
     userC = user_state[message.from_user.id]
     userC.timeend = 7
-    await timeendfunc(message,userC)
+    await timeendfunc(message, userC)
+
 
 @dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[8], state=UserStates.USER_STATE_4)
 async def first_test_state_case_met(message: types.Message):
@@ -675,23 +730,27 @@ async def first_test_state_case_met(message: types.Message):
     userC.timeend = 8
     await timeendfunc(message, userC)
 
-async def timeendfunc(message,userC):
+
+async def timeendfunc(message, userC):
     sql_check = "SELECT * FROM users where date={}".format(userC.date)
     cursor.execute(sql_check)
     newlist = cursor.fetchall()
     if not newlist:
         print('Пуста 2')
         sql_insert = "INSERT INTO users VALUES ('{}', '{}', '{}', '{}','{}')".format(message.from_user.id,
-                                                                                         userC.fullname,
-                                                                                         userC.date, userC.timestart,
-                                                                                         userC.timeend)
+                                                                                     userC.fullname,
+                                                                                     userC.date, userC.timestart,
+                                                                                     userC.timeend)
         cursor.execute(sql_insert)
         state = dp.current_state(user=message.from_user.id)
         dateOut = str(userC.date)
         dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
         await state.set_state(UserStates.all()[0])
+        await save_data()
         await bot.send_message(message.from_user.id,
-            '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut, DEF_ARR_TIMES[userC.timestart], DEF_ARR_TIMES[userC.timeend]))
+                               '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
+                                                                      DEF_ARR_TIMES[userC.timestart],
+                                                                      DEF_ARR_TIMES[userC.timeend]))
     else:
         chek = False
         for i in range(userC.timestart, userC.timeend - 1):
@@ -710,6 +769,7 @@ async def timeendfunc(message,userC):
             dateOut = str(userC.date)
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
             await state.set_state(UserStates.all()[0])
+            await save_data()
             await bot.send_message(message.from_user.id,
                                    '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
                                                                           DEF_ARR_TIMES[userC.timestart],
@@ -722,18 +782,18 @@ async def timeendfunc(message,userC):
             state = dp.current_state(user=message.from_user.id)
             markup = types.InlineKeyboardMarkup(row_width=3)
             button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-                  types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-                  types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-                  types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-                  types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-                  types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-                  types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-                  types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-                  types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
+                      types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
+                      types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
+                      types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
+                      types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
+                      types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
+                      types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
+                      types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
+                      types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
             markup.add(*button)
             await state.set_state(UserStates.all()[3])
-            await bot.send_message(message.from_user.id,'Нельзя выбрать этот промежуток выберите другой', reply_markup=markup)
-
+            await bot.send_message(message.from_user.id, 'Нельзя выбрать этот промежуток выберите другой',
+                                   reply_markup=markup)
 
 
 @dp.message_handler(state=UserStates.USER_STATE_1)
@@ -747,6 +807,6 @@ async def first_test_state_case_met(message: types.Message):
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(message.chat.id, "Выберите день:", reply_markup=calendar)
 
-
 if __name__ == '__main__':
+
     executor.start_polling(dp, skip_updates=True)
