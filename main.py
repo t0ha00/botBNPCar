@@ -4,6 +4,7 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument
+from aiogram.utils.callback_data import CallbackData
 from aiogram.utils import executor
 from telegram_bot_calendar import LSTEP, WMonthTelegramCalendar
 from utils import UserStates
@@ -28,7 +29,8 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 
 conn = sqlite3.connect(":memory:")  # или :memory: чтобы сохранить в RAM
 cursor = conn.cursor()
-cursor.execute("CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER)")
+cursor.execute(
+    "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, id INTEGER PRIMARY KEY)")
 
 
 class User:
@@ -41,8 +43,7 @@ class User:
 
 arr_times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
 user_state = {}
-arr_time_start = []
-arr_time_end = []
+callback_del = CallbackData("delbtn", "action", "id")
 
 
 # #--------------------Получение данных-------------------------
@@ -85,16 +86,6 @@ async def save_data():
 # ------------------------------Кнопка расписание-----------------------------------------
 
 # -----------------------------Выбор нужного расписания----------------------------------
-@dp.message_handler(commands=['otchet'], state="*")
-async def process_callback_button1(message: types.Message):
-    state = dp.current_state(user=message.from_user.id)
-    await state.set_state(UserStates.all()[5])
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text='Отчет по имени', callback_data='table_name'),
-              types.InlineKeyboardButton(text='Отчет по дате', callback_data='table_date'),
-              types.InlineKeyboardButton(text='Полный отчет', callback_data='table_full')]
-    markup.add(*button)
-    await bot.send_message(message.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
 
 @dp.callback_query_handler(lambda c: c.data == 'buttontime', state=UserStates.USER_STATE_0)
 async def process_callback_button1(callback_query: types.CallbackQuery):
@@ -294,7 +285,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
         worksheet = workbook.add_worksheet()
         worksheet.write(0, 0, 'Дата')
         worksheet.write(0, 1, 'Имя')
-        worksheet.write(0, 3, 'Время')
+        worksheet.write(0, 2, 'Время')
         count = 1
         for elem in resultlist:
             dateOut = str(elem[2])
@@ -327,11 +318,6 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 
 
 # ------------------------------Кнопка запись------------------------------------------------
-@dp.message_handler(commands=['zapis'], state="*")
-async def process_callback_button2(message: types.Message):
-    state = dp.current_state(user=message.from_user.id)
-    await state.set_state(UserStates.all()[1])
-    await bot.send_message(message.from_user.id, 'Введите ФИО.', )
 
 @dp.callback_query_handler(lambda c: c.data == 'buttonzapis', state=UserStates.USER_STATE_0)
 async def process_callback_button2(callback_query: types.CallbackQuery):
@@ -630,21 +616,25 @@ async def first_test_state_case_met(message: types.Message):
                            reply_markup=markup)
 
 
+# --------------------------------------Команды------------------------------------------------------------------------
+
 @dp.message_handler(commands=['start'], state='*')
 async def process_start_command(message: types.Message):
+    arr_times = DEF_ARR_TIMES
     sql_check = "SELECT * FROM users "
     cursor.execute(sql_check)
     newlist = cursor.fetchall()
     if not newlist:
         data = await get_data()
-        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?,?)", data)
         await save_data()
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
     conn.commit()
     button = InlineKeyboardButton('Посмотерть рассписание 📅', callback_data='buttontime')
     button2 = InlineKeyboardButton('Записаться 📝', callback_data='buttonzapis')
-    kb = InlineKeyboardMarkup().add(button).add(button2)
+    button3 = InlineKeyboardButton('Удалить запись ❌', callback_data='buttondelzapis')
+    kb = InlineKeyboardMarkup().add(button).add(button2).add(button3)
     await bot.send_message(message.from_user.id,
                            "Здравствуйте! 👋\nЭто бот-расписание БНП для автомобиля!\nВыберите, что вы хотите сделать.",
                            reply_markup=kb)
@@ -661,24 +651,109 @@ async def process_help_command(message: types.Message):
 
 @dp.message_handler(commands=['reset2'], state='*')
 async def process_help_command(message: types.Message):
-    cursor.execute("DROP TABLE users")
-    cursor.execute(
-        "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER)")
+    if message.from_user.id == admin_id:
+        cursor.execute("DROP TABLE users")
+        cursor.execute(
+            "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, "
+            "id INTEGER PRIMARY KEY)")
+        state = dp.current_state(user=message.from_user.id)
+        await state.set_state(UserStates.all()[0])
+        await save_data()
+        await bot.send_message(message.from_user.id, "Все СТЕРТО.")
+    else:
+        await bot.send_message(message.from_user.id, "Вам сюда нельзя.")
+
+
+@dp.message_handler(commands=['base'], state='*')
+async def process_help_command(message: types.Message):
+    if message.from_user.id == admin_id:
+        sql_check = "SELECT * FROM users ORDER BY date DESC"
+        cursor.execute(sql_check)
+        resultlist = cursor.fetchall()
+        if not resultlist:
+            await bot.send_message(message.from_user.id, 'Пустая таблица')
+        else:
+            workbook = xlsxwriter.Workbook('base.xlsx')
+            worksheet = workbook.add_worksheet()
+            worksheet.write(0, 0, 'ID')
+            worksheet.write(0, 1, 'Chat_id')
+            worksheet.write(0, 2, 'Имя')
+            worksheet.write(0, 3, 'Дата')
+            worksheet.write(0, 4, 'Время')
+            count = 1
+            for elem in resultlist:
+                dateOut = str(elem[2])
+                dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+                worksheet.write(count, 0, elem[5])
+                worksheet.write(count, 1, elem[0])
+                worksheet.write(count, 2, elem[1])
+                worksheet.write(count, 3, dateOut)
+                worksheet.write(count, 4, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]])
+                count += 1
+            workbook.close()
+            f = open('./base.xlsx', 'rb')
+            await bot.send_document(message.from_user.id, f)
+    else:
+        await bot.send_message(message.from_user.id, "Вам сюда нельзя.")
+
+
+@dp.message_handler(commands=['otchet'], state="*")
+async def process_callback_button1(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[5])
+    markup = types.InlineKeyboardMarkup(row_width=3)
+    button = [types.InlineKeyboardButton(text='Отчет по имени', callback_data='table_name'),
+              types.InlineKeyboardButton(text='Отчет по дате', callback_data='table_date'),
+              types.InlineKeyboardButton(text='Полный отчет', callback_data='table_full')]
+    markup.add(*button)
+    await bot.send_message(message.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
+
+
+@dp.message_handler(commands=['zapis'], state="*")
+async def process_callback_button2(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[1])
+    await bot.send_message(message.from_user.id, 'Введите ФИО.', )
+
+
+@dp.message_handler(commands=['delzapis'], state="*")
+async def process_callback_button_del(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
-    await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
+    sql_check = "SELECT * FROM users where chatid={}".format(message.from_user.id)
+    cursor.execute(sql_check)
+    newlist = cursor.fetchall()
+    if not newlist:
+        await bot.send_message(message.from_user.id, 'У Вас нет записей.', )
+    else:
+        i = 0
+        markup = types.InlineKeyboardMarkup(resize_keyboard=True)
+        for elem in newlist:
+            dateOut = str(elem[2])
+            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+            button = types.InlineKeyboardButton(text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
+                                                callback_data=callback_del.new(action="del", id=elem[5]))
+            markup.add(button)
+            i += 1
+        state = dp.current_state(user=message.from_user.id)
+        await state.set_state(UserStates.all()[1])
+        await bot.send_message(message.from_user.id, 'Какую запись удалить?', reply_markup=markup)
+
 
 @dp.message_handler(commands=['reset'], state='*')
 async def process_help_command(message: types.Message):
+    arr_times = DEF_ARR_TIMES
     data = await get_data()
     cursor.execute("DROP TABLE users")
     cursor.execute(
-        "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER)")
+        "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, "
+        "id INTEGER PRIMARY KEY)")
     cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
     await save_data()
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
     await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
+
 
 # ------------Последний этап, выбор окончания аренды, запись в базу --------------------------
 
@@ -744,10 +819,11 @@ async def timeendfunc(message, userC):
     newlist = cursor.fetchall()
     if not newlist:
         print('Пуста 2')
-        sql_insert = "INSERT INTO users VALUES ('{}', '{}', '{}', '{}','{}')".format(message.from_user.id,
-                                                                                     userC.fullname,
-                                                                                     userC.date, userC.timestart,
-                                                                                     userC.timeend)
+        sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend) VALUES ('{}', '{}', '{}', '{}','{}')" \
+            .format(message.from_user.id,
+                    userC.fullname,
+                    userC.date, userC.timestart,
+                    userC.timeend)
         cursor.execute(sql_insert)
         state = dp.current_state(user=message.from_user.id)
         dateOut = str(userC.date)
@@ -766,11 +842,12 @@ async def timeendfunc(message, userC):
                     chek = True
                     break
         if not chek:
-            sql_insert = "INSERT INTO users VALUES ('{}', '{}', '{}', '{}','{}')".format(message.from_user.id,
-                                                                                         userC.fullname,
-                                                                                         userC.date,
-                                                                                         userC.timestart,
-                                                                                         userC.timeend)
+            sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend) VALUES ('{}', '{}', '{}', '{}','{}')" \
+                .format(message.from_user.id,
+                        userC.fullname,
+                        userC.date,
+                        userC.timestart,
+                        userC.timeend)
             cursor.execute(sql_insert)
             state = dp.current_state(user=message.from_user.id)
             dateOut = str(userC.date)
@@ -802,6 +879,41 @@ async def timeendfunc(message, userC):
             await bot.send_message(message.from_user.id, 'Нельзя выбрать этот промежуток выберите другой',
                                    reply_markup=markup)
 
+
+#-----------------------------------Удаление записи---------------------------------------------------------------
+
+@dp.callback_query_handler(lambda c: c.data == "buttondelzapis", state="*")
+async def process_callback_button_del(message: types.Message):
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[0])
+    sql_check = "SELECT * FROM users where chatid={}".format(message.from_user.id)
+    cursor.execute(sql_check)
+    newlist = cursor.fetchall()
+    if not newlist:
+        await bot.send_message(message.from_user.id, 'У Вас нет записей.', )
+    else:
+        i = 0
+        markup = types.InlineKeyboardMarkup(resize_keyboard=True)
+        for elem in newlist:
+            dateOut = str(elem[2])
+            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+            button = types.InlineKeyboardButton(text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
+                                                callback_data=callback_del.new(action="del", id=elem[5]))
+            markup.add(button)
+            i += 1
+        state = dp.current_state(user=message.from_user.id)
+        await state.set_state(UserStates.all()[1])
+        await bot.send_message(message.from_user.id, 'Какую запись удалить?', reply_markup=markup)
+
+@dp.callback_query_handler(callback_del.filter(action=["del"]), state="*")
+async def callbacks_del(call: types.CallbackQuery, callback_data: dict):
+    state = dp.current_state(user=call.from_user.id)
+    await state.set_state(UserStates.all()[0])
+    del_id = callback_data["id"]
+    cursor.execute("DELETE FROM users WHERE id={}".format(del_id))
+    await save_data()
+    await bot.send_message(call.from_user.id, 'Все успешно удалено ✅')
+    await call.answer()
 
 @dp.message_handler(state=UserStates.USER_STATE_1)
 async def first_test_state_case_met(message: types.Message):
