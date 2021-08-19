@@ -1,16 +1,13 @@
-import asyncio
-
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument
 from aiogram.utils.callback_data import CallbackData
 from aiogram.utils import executor
-from telegram_bot_calendar import LSTEP, WMonthTelegramCalendar
+from telegram_bot_calendar import WMonthTelegramCalendar
 from utils import UserStates
 import prettytable as pt
 import xlsxwriter
-import threading
 import time
 import io
 import datetime
@@ -645,6 +642,7 @@ async def process_help_command(message: types.Message):
     await bot.send_message(message.from_user.id, "Здравствуйте! 👋\nЭто бот-расписание БНП для автомобиля!\n"
                                                  "Для начала используйте команду /start\n"
                                                  "Для записи команда /zapis\n"
+                                                 "Для удаления записи команда /delzapis\n"
                                                  "Для просмотра расписания /otchet\n"
                                                  "Если что-то посло не так - /reset")
 
