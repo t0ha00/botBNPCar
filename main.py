@@ -15,8 +15,9 @@ from urllib.request import urlopen
 import json
 import sqlite3
 
-TOKEN = '1931110131:AAHr3e9d0d_04URAnHs-v69pej5E65_AZzs'
-DEF_ARR_TIMES = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+TOKEN = '1931110131:AAG95uGgAYW7ykaaNt4ykSdsVJ0R_TQcN5U'
+DEF_ARR_TIMES = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                 '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '17-00']
 
 admin_id = 951299049
 config_id = 99
@@ -27,7 +28,7 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 conn = sqlite3.connect(":memory:")  # или :memory: чтобы сохранить в RAM
 cursor = conn.cursor()
 cursor.execute(
-    "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, id INTEGER PRIMARY KEY)")
+    "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, id INTEGER PRIMARY KEY, place TEXT)")
 
 
 class User:
@@ -36,9 +37,9 @@ class User:
         self.fullname = None
         self.timestart = None
         self.timeend = None
+        self.place = None
 
 
-arr_times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
 user_state = {}
 callback_del = CallbackData("delbtn", "action", "id")
 
@@ -84,7 +85,7 @@ async def save_data():
 
 # -----------------------------Выбор нужного расписания----------------------------------
 
-@dp.callback_query_handler(lambda c: c.data == 'buttontime', state=UserStates.USER_STATE_0)
+@dp.callback_query_handler(lambda c: c.data == 'buttontime', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[5])
@@ -97,7 +98,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Какой отчет нужен ?', reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'table_name', state=UserStates.USER_STATE_TABLE_0)
+@dp.callback_query_handler(lambda c: c.data == 'table_name', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[6])
@@ -108,23 +109,23 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'file_name', state=UserStates.USER_STATE_TABLE_1, )
+@dp.callback_query_handler(lambda c: c.data == 'file_name', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
-    await state.set_state(UserStates.all()[7])
+    await state.set_state(UserStates.all()[4])
     await bot.send_message(callback_query.from_user.id, 'Введите ФИО.')
 
 
-@dp.callback_query_handler(lambda c: c.data == 'message_name', state=UserStates.USER_STATE_TABLE_1, )
+@dp.callback_query_handler(lambda c: c.data == 'message_name', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
-    await state.set_state(UserStates.all()[8])
+    await state.set_state(UserStates.all()[5])
     await bot.send_message(callback_query.from_user.id, 'Введите ФИО.')
 
 
-@dp.message_handler(state=UserStates.USER_STATE_TABLE_2)
+@dp.message_handler(state=UserStates.USER_STATE_4)
 async def process_callback_button1(message: types.Message):
     name = '\"' + message.text + '\"'
     sql_select = "SELECT * FROM users where name={} ORDER BY date DESC".format(name)
@@ -139,19 +140,21 @@ async def process_callback_button1(message: types.Message):
         worksheet = workbook.add_worksheet()
         worksheet.write(0, 0, 'Дата')
         worksheet.write(0, 1, 'Время')
+        worksheet.write(0, 2, 'Место')
         count = 1
         for elem in resultlist:
             dateOut = str(elem[2])
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
             worksheet.write(count, 0, dateOut)
             worksheet.write(count, 1, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]])
+            worksheet.write(count, 2, elem[6])
             count += 1
         workbook.close()
         f = open('./' + message.text + '.xlsx', 'rb')
         await bot.send_document(message.from_user.id, f)
 
 
-@dp.message_handler(state=UserStates.USER_STATE_TABLE_3)
+@dp.message_handler(state=UserStates.USER_STATE_5)
 async def process_callback_button1(message: types.message):
     name = '\"' + message.text + '\"'
     sql_select = "SELECT * FROM users where name={} ORDER BY date DESC".format(name)
@@ -162,15 +165,15 @@ async def process_callback_button1(message: types.message):
     if not resultlist:
         await bot.send_message(message.from_user.id, 'Пустая таблица')
     else:
-        table = pt.PrettyTable(["Дата", "Время"])
+        table = pt.PrettyTable(["Дата", "Время", "Место"])
         for elem in resultlist:
             dateOut = str(elem[2])
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-            table.add_row([dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+            table.add_row([dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]], elem[6]])
         await bot.send_message(message.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
 
-@dp.callback_query_handler(lambda c: c.data == 'table_date', state=UserStates.USER_STATE_TABLE_0)
+@dp.callback_query_handler(lambda c: c.data == 'table_date', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[9])
@@ -181,25 +184,25 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'file_date', state=UserStates.USER_STATE_TABLE_4, )
+@dp.callback_query_handler(lambda c: c.data == 'file_date', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
-    await state.set_state(UserStates.all()[10])
+    await state.set_state(UserStates.all()[6])
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(callback_query.from_user.id, 'Выберите дату', reply_markup=calendar)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'message_date', state=UserStates.USER_STATE_TABLE_4, )
+@dp.callback_query_handler(lambda c: c.data == 'message_date', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     state = dp.current_state(user=callback_query.from_user.id)
-    await state.set_state(UserStates.all()[11])
+    await state.set_state(UserStates.all()[7])
     calendar, step = WMonthTelegramCalendar().build()
     await bot.send_message(callback_query.from_user.id, 'Выберите дату', reply_markup=calendar)
 
 
-@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_TABLE_5)
+@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_6)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     result, key, step = WMonthTelegramCalendar().process(callback_query.data)
     if not result and key:
@@ -222,17 +225,19 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
             worksheet = workbook.add_worksheet()
             worksheet.write(0, 0, 'Имя')
             worksheet.write(0, 1, 'Время')
+            worksheet.write(0, 2, 'Место')
             count = 1
             for elem in resultlist:
                 worksheet.write(count, 0, elem[1])
                 worksheet.write(count, 1, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]])
+                worksheet.write(count, 2, elem[6])
                 count += 1
             workbook.close()
             f = open('./' + str(result) + '.xlsx', 'rb')
             await bot.send_document(callback_query.from_user.id, f)
 
 
-@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_TABLE_6)
+@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_7)
 async def process_callback_button1(callback_query: types.CallbackQuery):
     result, key, step = WMonthTelegramCalendar().process(callback_query.data)
     if not result and key:
@@ -251,14 +256,14 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
             await bot.answer_callback_query(callback_query.id)
             await bot.send_message(callback_query.from_user.id, 'Пустая таблица')
         else:
-            table = pt.PrettyTable(["Имя", "Время"])
+            table = pt.PrettyTable(["Имя", "Время", "Место"])
             for elem in resultlist:
-                table.add_row([elem[1], 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+                table.add_row([elem[1], 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]], elem[6]])
             await bot.answer_callback_query(callback_query.id)
             await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
 
-@dp.callback_query_handler(lambda c: c.data == 'table_full', state=UserStates.USER_STATE_TABLE_0)
+@dp.callback_query_handler(lambda c: c.data == 'table_full', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state(UserStates.all()[12])
@@ -269,7 +274,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Выберите как хотите получаить отчет', reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'file_full', state=UserStates.USER_STATE_TABLE_7)
+@dp.callback_query_handler(lambda c: c.data == 'file_full', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     sql_check = "SELECT * FROM users ORDER BY date DESC"
     cursor.execute(sql_check)
@@ -283,6 +288,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
         worksheet.write(0, 0, 'Дата')
         worksheet.write(0, 1, 'Имя')
         worksheet.write(0, 2, 'Время')
+        worksheet.write(0, 3, 'Место')
         count = 1
         for elem in resultlist:
             dateOut = str(elem[2])
@@ -290,13 +296,14 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
             worksheet.write(count, 0, dateOut)
             worksheet.write(count, 1, elem[1])
             worksheet.write(count, 2, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]])
+            worksheet.write(count, 3, elem[6])
             count += 1
         workbook.close()
         f = open('./full.xlsx', 'rb')
         await bot.send_document(callback_query.from_user.id, f)
 
 
-@dp.callback_query_handler(lambda c: c.data == 'message_full', state=UserStates.USER_STATE_TABLE_7)
+@dp.callback_query_handler(lambda c: c.data == 'message_full', state='*')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     sql_check = "SELECT * FROM users ORDER BY date DESC"
     cursor.execute(sql_check)
@@ -305,11 +312,11 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
         await bot.answer_callback_query(callback_query.id)
         await bot.send_message(callback_query.from_user.id, 'Пустая таблица')
     else:
-        table = pt.PrettyTable(["Имя", "Дата", "Время"])
+        table = pt.PrettyTable(["Имя", "Дата", "Время", "Место"])
         for elem in resultlist:
             dateOut = str(elem[2])
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-            table.add_row([elem[1], dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]]])
+            table.add_row([elem[1], dateOut, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]], elem[6]])
         await bot.answer_callback_query(callback_query.id)
         await bot.send_message(callback_query.from_user.id, f'<pre>{table}</pre>', parse_mode='html')
 
@@ -326,10 +333,11 @@ async def process_callback_button2(callback_query: types.CallbackQuery):
 
 # -------------------Выбор даты первый раз------------------------------------------------
 
-@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_2)
+@dp.callback_query_handler(WMonthTelegramCalendar.func(), state=UserStates.USER_STATE_3)
 async def inline_kb_answer_callback_handler(query):
     result, key, step = WMonthTelegramCalendar().process(query.data)
-    arr_times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '❌']
+    arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                 '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '❌']
     if not result and key:
         await bot.edit_message_text(f"📅 Выберите день",
                                     query.message.chat.id,
@@ -354,15 +362,42 @@ async def inline_kb_answer_callback_handler(query):
                     for i in range(int(ellist[3]), int(ellist[4])):
                         arr_times[i] = '❌'
 
-            button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-                      types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-                      types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-                      types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-                      types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-                      types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-                      types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-                      types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-                      types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
+            button = [types.InlineKeyboardButton(text=arr_times[0],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[0])),
+                      types.InlineKeyboardButton(text=arr_times[1],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[1])),
+                      types.InlineKeyboardButton(text=arr_times[2],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[2])),
+                      types.InlineKeyboardButton(text=arr_times[3],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[3])),
+                      types.InlineKeyboardButton(text=arr_times[4],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[4])),
+                      types.InlineKeyboardButton(text=arr_times[5],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[5])),
+                      types.InlineKeyboardButton(text=arr_times[6],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[6])),
+                      types.InlineKeyboardButton(text=arr_times[7],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[7])),
+                      types.InlineKeyboardButton(text=arr_times[8],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[8])),
+                      types.InlineKeyboardButton(text=arr_times[9],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[9])),
+                      types.InlineKeyboardButton(text=arr_times[10],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[10])),
+                      types.InlineKeyboardButton(text=arr_times[11],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[11])),
+                      types.InlineKeyboardButton(text=arr_times[12],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[12])),
+                      types.InlineKeyboardButton(text=arr_times[13],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[13])),
+                      types.InlineKeyboardButton(text=arr_times[14],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[14])),
+                      types.InlineKeyboardButton(text=arr_times[15],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[15])),
+                      types.InlineKeyboardButton(text=arr_times[16],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[16])),
+                      types.InlineKeyboardButton(text=arr_times[17],
+                                                 callback_data=callback_del.new(action="time_start", id=arr_times[17]))]
             markup.add(*button)
             await state.set_state(UserStates.all()[3])
             await bot.send_message(query.from_user.id, f"Вы выбрали {result} \nТеперь выберите час начала. ⏰",
@@ -373,257 +408,331 @@ async def inline_kb_answer_callback_handler(query):
             await bot.send_message(query.from_user.id, "📅 Выберите день:", reply_markup=calendar)
 
 
-# -----------------------------Запретная кнопка-----------------------------------------------
+# ------------------------------------------Ввод часа начала-----------------------------------------------------------
 
-@dp.callback_query_handler(lambda c: c.data == '❌', state='*')
-async def first_test_state_case_met(message: types.Message):
-    arr_times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '❌']
-    userC = user_state[message.from_user.id]
-    sql_check = "SELECT * FROM users where date={}".format(userC.date)
-    cursor.execute(sql_check)
-    newlist = cursor.fetchall()
-    for ellist in newlist:
-        for i in range(int(ellist[3]), int(ellist[4])):
-            arr_times[i] = '❌'
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await bot.send_message(message.from_user.id, '❗ Нельзя выбирать эту кнопку она же красная ❗',
-                           reply_markup=markup)
-
-
-# --------------Ввод часа начала-----------------------------------------------------------
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[0], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 0
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[1], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 1
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[2], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 2
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[3], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[3] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 3
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[4], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[3] = '❌'
-    arr_times[4] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 4
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
+@dp.callback_query_handler(callback_del.filter(action="time_start"), state='*')
+async def callbacks_num_change_fab(call: types.CallbackQuery, callback_data: dict):
+    id_btn = callback_data["id"]
+    if id_btn == '❌':
+        arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                     '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '❌']
+        userC = user_state[call.from_user.id]
+        sql_check = "SELECT * FROM users where date={}".format(userC.date)
+        cursor.execute(sql_check)
+        newlist = cursor.fetchall()
+        for ellist in newlist:
+            for i in range(int(ellist[3]), int(ellist[4])):
+                arr_times[i] = '❌'
+        markup = types.InlineKeyboardMarkup(row_width=3)
+        button = [types.InlineKeyboardButton(text=arr_times[0],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[0])),
+                  types.InlineKeyboardButton(text=arr_times[1],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[1])),
+                  types.InlineKeyboardButton(text=arr_times[2],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[2])),
+                  types.InlineKeyboardButton(text=arr_times[3],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[3])),
+                  types.InlineKeyboardButton(text=arr_times[4],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[4])),
+                  types.InlineKeyboardButton(text=arr_times[5],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[5])),
+                  types.InlineKeyboardButton(text=arr_times[6],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[6])),
+                  types.InlineKeyboardButton(text=arr_times[7],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[7])),
+                  types.InlineKeyboardButton(text=arr_times[8],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[8])),
+                  types.InlineKeyboardButton(text=arr_times[9],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[9])),
+                  types.InlineKeyboardButton(text=arr_times[10],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[10])),
+                  types.InlineKeyboardButton(text=arr_times[11],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[11])),
+                  types.InlineKeyboardButton(text=arr_times[12],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[12])),
+                  types.InlineKeyboardButton(text=arr_times[13],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[13])),
+                  types.InlineKeyboardButton(text=arr_times[14],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[14])),
+                  types.InlineKeyboardButton(text=arr_times[15],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[15])),
+                  types.InlineKeyboardButton(text=arr_times[16],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[16])),
+                  types.InlineKeyboardButton(text=arr_times[17],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[17]))]
+        markup.add(*button)
+        await call.answer()
+        await bot.send_message(call.from_user.id, '❗ Нельзя выбирать эту кнопку она же красная ❗',
+                               reply_markup=markup)
+    else:
+        arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                     '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '17-00']
+        index = 0
+        for i in DEF_ARR_TIMES:
+            if i == id_btn:
+                break
+            else:
+                index += 1
+        if index == 0 or index == 8:
+            arr_times[index] = '❌'
+        else:
+            for i in range(0, index):
+                arr_times[i] = '❌'
+        userC = user_state[call.from_user.id]
+        sql_check = "SELECT * FROM users where date={}".format(userC.date)
+        cursor.execute(sql_check)
+        newlist = cursor.fetchall()
+        if not newlist:
+            print("Здесь пусто")
+        else:
+            for ellist in newlist:
+                for i in range(int(ellist[3]), int(ellist[4])):
+                    arr_times[i] = '❌'
+        userC.timestart = index
+        arr_times[userC.timestart] = '❌'
+        state = dp.current_state(user=call.from_user.id)
+        markup = types.InlineKeyboardMarkup(row_width=3)
+        button = [types.InlineKeyboardButton(text=arr_times[0],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[0])),
+                  types.InlineKeyboardButton(text=arr_times[1],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[1])),
+                  types.InlineKeyboardButton(text=arr_times[2],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[2])),
+                  types.InlineKeyboardButton(text=arr_times[3],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[3])),
+                  types.InlineKeyboardButton(text=arr_times[4],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[4])),
+                  types.InlineKeyboardButton(text=arr_times[5],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[5])),
+                  types.InlineKeyboardButton(text=arr_times[6],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[6])),
+                  types.InlineKeyboardButton(text=arr_times[7],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[7])),
+                  types.InlineKeyboardButton(text=arr_times[8],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[8])),
+                  types.InlineKeyboardButton(text=arr_times[9],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[9])),
+                  types.InlineKeyboardButton(text=arr_times[10],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[10])),
+                  types.InlineKeyboardButton(text=arr_times[11],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[11])),
+                  types.InlineKeyboardButton(text=arr_times[12],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[12])),
+                  types.InlineKeyboardButton(text=arr_times[13],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[13])),
+                  types.InlineKeyboardButton(text=arr_times[14],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[14])),
+                  types.InlineKeyboardButton(text=arr_times[15],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[15])),
+                  types.InlineKeyboardButton(text=arr_times[16],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[16])),
+                  types.InlineKeyboardButton(text=arr_times[17],
+                                             callback_data=callback_del.new(action="time_end", id=arr_times[17]))]
+        markup.add(*button)
+        await call.answer()
+        await state.set_state(UserStates.all()[4])
+        await bot.send_message(call.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
+                               reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[5], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[3] = '❌'
-    arr_times[4] = '❌'
-    arr_times[5] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 5
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
+# ------------Последний этап, выбор окончания аренды, запись в базу --------------------------
+
+@dp.callback_query_handler(callback_del.filter(action="time_end"), state='*')
+async def first_test_state_case_met(call: types.CallbackQuery, callback_data: dict):
+    id_btn = callback_data["id"]
+    if id_btn == '❌':
+        arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                     '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '❌']
+        userC = user_state[call.from_user.id]
+        sql_check = "SELECT * FROM users where date={}".format(userC.date)
+        cursor.execute(sql_check)
+        newlist = cursor.fetchall()
+        for ellist in newlist:
+            for i in range(int(ellist[3]), int(ellist[4])):
+                arr_times[i] = '❌'
+        markup = types.InlineKeyboardMarkup(row_width=3)
+        button = [types.InlineKeyboardButton(text=arr_times[0],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[0])),
+                  types.InlineKeyboardButton(text=arr_times[1],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[1])),
+                  types.InlineKeyboardButton(text=arr_times[2],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[2])),
+                  types.InlineKeyboardButton(text=arr_times[3],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[3])),
+                  types.InlineKeyboardButton(text=arr_times[4],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[4])),
+                  types.InlineKeyboardButton(text=arr_times[5],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[5])),
+                  types.InlineKeyboardButton(text=arr_times[6],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[6])),
+                  types.InlineKeyboardButton(text=arr_times[7],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[7])),
+                  types.InlineKeyboardButton(text=arr_times[8],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[8])),
+                  types.InlineKeyboardButton(text=arr_times[9],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[9])),
+                  types.InlineKeyboardButton(text=arr_times[10],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[10])),
+                  types.InlineKeyboardButton(text=arr_times[11],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[11])),
+                  types.InlineKeyboardButton(text=arr_times[12],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[12])),
+                  types.InlineKeyboardButton(text=arr_times[13],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[13])),
+                  types.InlineKeyboardButton(text=arr_times[14],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[14])),
+                  types.InlineKeyboardButton(text=arr_times[15],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[15])),
+                  types.InlineKeyboardButton(text=arr_times[16],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[16])),
+                  types.InlineKeyboardButton(text=arr_times[17],
+                                             callback_data=callback_del.new(action="time_start", id=arr_times[17]))]
+        markup.add(*button)
+        await bot.send_message(call.from_user.id, '❗ Нельзя выбирать эту кнопку она же красная ❗',
+                               reply_markup=markup)
+    else:
+        index = 0
+        arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
+                     '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '❌']
+        for i in DEF_ARR_TIMES:
+            if i == id_btn:
+                break
+            else:
+                index += 1
+        if index == 0 or index == 8:
+            arr_times[index] = '❌'
+        else:
+            for i in range(0, index):
+                arr_times[i] = '❌'
+        userC = user_state[call.from_user.id]
+        userC.timeend = index
+        sql_check = "SELECT * FROM users where date={}".format(userC.date)
+        cursor.execute(sql_check)
+        newlist = cursor.fetchall()
+        if not newlist:
+            sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend, place) VALUES ('{}', '{}', '{}', '{}','{}','{}')" \
+                .format(call.from_user.id,
+                        userC.fullname,
+                        userC.date,
+                        userC.timestart,
+                        userC.timeend,
+                        userC.place)
+            cursor.execute(sql_insert)
+            state = dp.current_state(user=call.from_user.id)
+            dateOut = str(userC.date)
+            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+            await state.set_state(UserStates.all()[0])
+            await save_data()
+            await bot.send_message(call.from_user.id,
+                                   '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
+                                                                          DEF_ARR_TIMES[userC.timestart],
+                                                                          DEF_ARR_TIMES[userC.timeend]))
+        else:
+            chek = False
+            for i in range(int(userC.timestart), int(userC.timeend)):
+                for elem in newlist:
+                    if (i == elem[3]) or (i == elem[4]):
+                        chek = True
+                        break
+            if chek == False:
+                sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend, place) VALUES ('{}','{}','{}','{}','{}','{}')" \
+                    .format(call.from_user.id,
+                            userC.fullname,
+                            userC.date,
+                            userC.timestart,
+                            userC.timeend,
+                            userC.place)
+                cursor.execute(sql_insert)
+                state = dp.current_state(user=call.from_user.id)
+                dateOut = str(userC.date)
+                dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
+                await state.set_state(UserStates.all()[0])
+                await save_data()
+                await call.answer()
+                await bot.send_message(call.from_user.id,
+                                       '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
+                                                                              DEF_ARR_TIMES[userC.timestart],
+                                                                              DEF_ARR_TIMES[userC.timeend]))
+            else:
+                userC.timestart = None
+                arr_times = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00',
+                             '13-30', '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '❌']
+                for ellist in newlist:
+                    for i in range(int(ellist[3]), int(ellist[4])):
+                        arr_times[i] = '❌'
+                state = dp.current_state(user=call.from_user.id)
+                markup = types.InlineKeyboardMarkup(row_width=3)
+                button = [types.InlineKeyboardButton(text=arr_times[0],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[0])),
+                          types.InlineKeyboardButton(text=arr_times[1],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[1])),
+                          types.InlineKeyboardButton(text=arr_times[2],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[2])),
+                          types.InlineKeyboardButton(text=arr_times[3],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[3])),
+                          types.InlineKeyboardButton(text=arr_times[4],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[4])),
+                          types.InlineKeyboardButton(text=arr_times[5],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[5])),
+                          types.InlineKeyboardButton(text=arr_times[6],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[6])),
+                          types.InlineKeyboardButton(text=arr_times[7],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[7])),
+                          types.InlineKeyboardButton(text=arr_times[8],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[8])),
+                          types.InlineKeyboardButton(text=arr_times[9],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[9])),
+                          types.InlineKeyboardButton(text=arr_times[10],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[10])),
+                          types.InlineKeyboardButton(text=arr_times[11],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[11])),
+                          types.InlineKeyboardButton(text=arr_times[12],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[12])),
+                          types.InlineKeyboardButton(text=arr_times[13],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[13])),
+                          types.InlineKeyboardButton(text=arr_times[14],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[14])),
+                          types.InlineKeyboardButton(text=arr_times[15],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[15])),
+                          types.InlineKeyboardButton(text=arr_times[16],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[16])),
+                          types.InlineKeyboardButton(text=arr_times[17],
+                                                     callback_data=callback_del.new(action="time_start",
+                                                                                    id=arr_times[17]))]
+                markup.add(*button)
+                await call.answer()
+                await state.set_state(UserStates.all()[3])
+                await bot.send_message(call.from_user.id, 'Нельзя выбрать этот промежуток выберите другой',
+                                       reply_markup=markup)
 
 
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[6], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[3] = '❌'
-    arr_times[4] = '❌'
-    arr_times[5] = '❌'
-    arr_times[6] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 6
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[7], state=UserStates.USER_STATE_3)
-async def first_test_state_case_met(message: types.Message):
-    arr_times[0] = '❌'
-    arr_times[1] = '❌'
-    arr_times[2] = '❌'
-    arr_times[3] = '❌'
-    arr_times[4] = '❌'
-    arr_times[5] = '❌'
-    arr_times[6] = '❌'
-    arr_times[7] = '❌'
-    arr_times[8] = '17:00'
-    userC = user_state[message.from_user.id]
-    userC.timestart = 5
-    state = dp.current_state(user=message.from_user.id)
-    markup = types.InlineKeyboardMarkup(row_width=3)
-    button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-              types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-              types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-              types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-              types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-              types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-              types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-              types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-              types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-    markup.add(*button)
-    await state.set_state(UserStates.all()[4])
-    await bot.send_message(message.from_user.id, 'Спасибо, теперь, выберите час окончания в формате 24ч. ⏰',
-                           reply_markup=markup)
-
-
-# --------------------------------------Команды------------------------------------------------------------------------
+# --------------------------------------Команды----------------------------------------------------------------------
 
 @dp.message_handler(commands=['start'], state='*')
 async def process_start_command(message: types.Message):
-    arr_times = DEF_ARR_TIMES
     sql_check = "SELECT * FROM users "
     cursor.execute(sql_check)
     newlist = cursor.fetchall()
     if not newlist:
         data = await get_data()
-        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?,?)", data)
+        cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?,?,?)", data)
         await save_data()
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
@@ -653,7 +762,7 @@ async def process_help_command(message: types.Message):
         cursor.execute("DROP TABLE users")
         cursor.execute(
             "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, "
-            "id INTEGER PRIMARY KEY)")
+            "id INTEGER PRIMARY KEY, place TEXT)")
         state = dp.current_state(user=message.from_user.id)
         await state.set_state(UserStates.all()[0])
         await save_data()
@@ -678,6 +787,7 @@ async def process_help_command(message: types.Message):
             worksheet.write(0, 2, 'Имя')
             worksheet.write(0, 3, 'Дата')
             worksheet.write(0, 4, 'Время')
+            worksheet.write(0, 5, 'Место')
             count = 1
             for elem in resultlist:
                 dateOut = str(elem[2])
@@ -687,6 +797,7 @@ async def process_help_command(message: types.Message):
                 worksheet.write(count, 2, elem[1])
                 worksheet.write(count, 3, dateOut)
                 worksheet.write(count, 4, 'c ' + DEF_ARR_TIMES[elem[3]] + ' до ' + DEF_ARR_TIMES[elem[4]])
+                worksheet.write(count, 5, elem[6])
                 count += 1
             workbook.close()
             f = open('./base.xlsx', 'rb')
@@ -729,8 +840,9 @@ async def process_callback_button_del(message: types.Message):
         for elem in newlist:
             dateOut = str(elem[2])
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-            button = types.InlineKeyboardButton(text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
-                                                callback_data=callback_del.new(action="del", id=elem[5]))
+            button = types.InlineKeyboardButton(
+                text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
+                callback_data=callback_del.new(action="del", id=elem[5]))
             markup.add(button)
             i += 1
         state = dp.current_state(user=message.from_user.id)
@@ -740,145 +852,19 @@ async def process_callback_button_del(message: types.Message):
 
 @dp.message_handler(commands=['reset'], state='*')
 async def process_help_command(message: types.Message):
-    arr_times = DEF_ARR_TIMES
     data = await get_data()
     cursor.execute("DROP TABLE users")
     cursor.execute(
         "CREATE TABLE users (chatid INTEGER , name TEXT, date INTEGER, timestart INTEGER, timeend INTEGER, "
-        "id INTEGER PRIMARY KEY)")
-    cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?)", data)
+        "id INTEGER PRIMARY KEY, place TEXT)")
+    cursor.executemany("INSERT INTO users VALUES(?,?,?,?,?,?,?)", data)
     await save_data()
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[0])
     await bot.send_message(message.from_user.id, "Все, можете возвращаться к работе.")
 
 
-# ------------Последний этап, выбор окончания аренды, запись в базу --------------------------
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[1], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 1
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[2], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 2
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[3], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 3
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[4], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 4
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[5], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 5
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[6], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 6
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[7], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 7
-    await timeendfunc(message, userC)
-
-
-@dp.callback_query_handler(lambda c: c.data == DEF_ARR_TIMES[8], state=UserStates.USER_STATE_4)
-async def first_test_state_case_met(message: types.Message):
-    userC = user_state[message.from_user.id]
-    userC.timeend = 8
-    await timeendfunc(message, userC)
-
-
-async def timeendfunc(message, userC):
-    sql_check = "SELECT * FROM users where date={}".format(userC.date)
-    cursor.execute(sql_check)
-    newlist = cursor.fetchall()
-    if not newlist:
-        print('Пуста 2')
-        sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend) VALUES ('{}', '{}', '{}', '{}','{}')" \
-            .format(message.from_user.id,
-                    userC.fullname,
-                    userC.date, userC.timestart,
-                    userC.timeend)
-        cursor.execute(sql_insert)
-        state = dp.current_state(user=message.from_user.id)
-        dateOut = str(userC.date)
-        dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-        await state.set_state(UserStates.all()[0])
-        await save_data()
-        await bot.send_message(message.from_user.id,
-                               '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
-                                                                      DEF_ARR_TIMES[userC.timestart],
-                                                                      DEF_ARR_TIMES[userC.timeend]))
-    else:
-        chek = False
-        for i in range(userC.timestart, userC.timeend - 1):
-            for elem in newlist:
-                if i == elem[3] or i == elem[4]:
-                    chek = True
-                    break
-        if not chek:
-            sql_insert = "INSERT INTO users (chatid, name, date, timestart, timeend) VALUES ('{}', '{}', '{}', '{}','{}')" \
-                .format(message.from_user.id,
-                        userC.fullname,
-                        userC.date,
-                        userC.timestart,
-                        userC.timeend)
-            cursor.execute(sql_insert)
-            state = dp.current_state(user=message.from_user.id)
-            dateOut = str(userC.date)
-            dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-            await state.set_state(UserStates.all()[0])
-            await save_data()
-            await bot.send_message(message.from_user.id,
-                                   '{}, вы записаны {} c {} до {}'.format(userC.fullname, dateOut,
-                                                                          DEF_ARR_TIMES[userC.timestart],
-                                                                          DEF_ARR_TIMES[userC.timeend]))
-        else:
-            arr_times = DEF_ARR_TIMES
-            for ellist in newlist:
-                for i in range(int(ellist[3]), int(ellist[4])):
-                    arr_times[i] = '❌'
-            state = dp.current_state(user=message.from_user.id)
-            markup = types.InlineKeyboardMarkup(row_width=3)
-            button = [types.InlineKeyboardButton(text=arr_times[0], callback_data=arr_times[0]),
-                      types.InlineKeyboardButton(text=arr_times[1], callback_data=arr_times[1]),
-                      types.InlineKeyboardButton(text=arr_times[2], callback_data=arr_times[2]),
-                      types.InlineKeyboardButton(text=arr_times[3], callback_data=arr_times[3]),
-                      types.InlineKeyboardButton(text=arr_times[4], callback_data=arr_times[4]),
-                      types.InlineKeyboardButton(text=arr_times[5], callback_data=arr_times[5]),
-                      types.InlineKeyboardButton(text=arr_times[6], callback_data=arr_times[6]),
-                      types.InlineKeyboardButton(text=arr_times[7], callback_data=arr_times[7]),
-                      types.InlineKeyboardButton(text=arr_times[8], callback_data=arr_times[8])]
-            markup.add(*button)
-            await state.set_state(UserStates.all()[3])
-            await bot.send_message(message.from_user.id, 'Нельзя выбрать этот промежуток выберите другой',
-                                   reply_markup=markup)
-
-
-#-----------------------------------Удаление записи---------------------------------------------------------------
+# -----------------------------------Удаление записи---------------------------------------------------------------
 
 @dp.callback_query_handler(lambda c: c.data == "buttondelzapis", state="*")
 async def process_callback_button_del(message: types.Message):
@@ -895,13 +881,15 @@ async def process_callback_button_del(message: types.Message):
         for elem in newlist:
             dateOut = str(elem[2])
             dateOut = dateOut[:4] + '-' + dateOut[4:6] + '-' + dateOut[6:]
-            button = types.InlineKeyboardButton(text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
-                                                callback_data=callback_del.new(action="del", id=elem[5]))
+            button = types.InlineKeyboardButton(
+                text=dateOut + ' ' + DEF_ARR_TIMES[elem[3]] + ' - ' + DEF_ARR_TIMES[elem[4]],
+                callback_data=callback_del.new(action="del", id=elem[5]))
             markup.add(button)
             i += 1
         state = dp.current_state(user=message.from_user.id)
         await state.set_state(UserStates.all()[1])
         await bot.send_message(message.from_user.id, 'Какую запись удалить?', reply_markup=markup)
+
 
 @dp.callback_query_handler(callback_del.filter(action=["del"]), state="*")
 async def callbacks_del(call: types.CallbackQuery, callback_data: dict):
@@ -913,6 +901,18 @@ async def callbacks_del(call: types.CallbackQuery, callback_data: dict):
     await bot.send_message(call.from_user.id, 'Все успешно удалено ✅')
     await call.answer()
 
+
+@dp.message_handler(state=UserStates.USER_STATE_2)
+async def place_to_drive(message: types.Message):
+    userC = user_state[message.from_user.id]
+    userC.place = message.text
+    state = dp.current_state(user=message.from_user.id)
+    await state.set_state(UserStates.all()[3])
+    await message.reply('Спасибо!\nТеперь, выберите дату 📅', reply=False)
+    calendar, step = WMonthTelegramCalendar().build()
+    await bot.send_message(message.chat.id, "Выберите день:", reply_markup=calendar)
+
+
 @dp.message_handler(state=UserStates.USER_STATE_1)
 async def first_test_state_case_met(message: types.Message):
     user_state[message.from_user.id] = User()
@@ -920,9 +920,7 @@ async def first_test_state_case_met(message: types.Message):
     userC.fullname = message.text
     state = dp.current_state(user=message.from_user.id)
     await state.set_state(UserStates.all()[2])
-    await message.reply('Спасибо, ' + message.text + '\nТеперь, выберите дату 📅', reply=False)
-    calendar, step = WMonthTelegramCalendar().build()
-    await bot.send_message(message.chat.id, "Выберите день:", reply_markup=calendar)
+    await bot.send_message(message.from_user.id, 'Спасибо, ' + userC.fullname + '\nВведите место назначения')
 
 
 if __name__ == '__main__':
