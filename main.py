@@ -15,7 +15,7 @@ from urllib.request import urlopen
 import json
 import sqlite3
 
-TOKEN = '1931110131:AAG95uGgAYW7ykaaNt4ykSdsVJ0R_TQcN5U'
+TOKEN = '1931110131:AAFelGGRcHdQI921qaAPkdb7dDzes9MbkdU'
 DEF_ARR_TIMES = ['8-30', '9-00', '9-30', '10-00', '10-30', '11-00', '11-30', '12-00', '12-30', '13-00', '13-30',
                  '14-00', '14-30', '15-00', '15-30', '16-00', '16-30', '17-00']
 
@@ -330,6 +330,14 @@ async def process_callback_button2(callback_query: types.CallbackQuery):
     await state.set_state(UserStates.all()[1])
     await bot.send_message(callback_query.from_user.id, 'Введите ФИО.', )
 
+# --------------------------Местоположение машины-----------------------------------------
+
+@dp.callback_query_handler(lambda c: c.data == 'buttonzapis', state=UserStates.USER_STATE_0)
+async def process_callback_button2(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state(UserStates.all()[1])
+    await bot.send_message(callback_query.from_user.id, 'Введите ФИО.', )
 
 # -------------------Выбор даты первый раз------------------------------------------------
 
@@ -740,7 +748,8 @@ async def process_start_command(message: types.Message):
     button = InlineKeyboardButton('Посмотерть рассписание 📅', callback_data='buttontime')
     button2 = InlineKeyboardButton('Записаться 📝', callback_data='buttonzapis')
     button3 = InlineKeyboardButton('Удалить запись ❌', callback_data='buttondelzapis')
-    kb = InlineKeyboardMarkup().add(button).add(button2).add(button3)
+    button4 = InlineKeyboardButton('Местоположение машины 🌍', callback_data='buttoncarplace')
+    kb = InlineKeyboardMarkup().add(button).add(button2).add(button3).add(button4)
     await bot.send_message(message.from_user.id,
                            "Здравствуйте! 👋\nЭто бот-расписание БНП для автомобиля!\nВыберите, что вы хотите сделать.",
                            reply_markup=kb)
